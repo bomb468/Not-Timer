@@ -2,12 +2,19 @@ package com.example.notificationtimerapp
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.Application
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,6 +35,50 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.example.notificationtimerapp.ui.theme.NotificationTimerAppTheme
 
+class MyApplication : Application() {
+    companion object{
+        const val CHANNEL_ID_ALARM = "alarm_channel" // MAX Priority
+        const val CHANNEL_ID_TIMER = "timer_channel" // HIGH Priority
+        const val CHANNEL_ID_DROP_DOWN = "drop_down_channel" // MAX Priority
+    }
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannels()
+    }
+    private fun createNotificationChannels() {
+        val manager = getSystemService(NotificationManager::class.java)
+        // 1. Alarm Channel: MAX Priority + Sound
+        val alarmChannel = NotificationChannel(
+            CHANNEL_ID_ALARM, "Alarm Notification", NotificationManager.IMPORTANCE_MAX
+        ).apply {
+            description = "Used for start alarms on timer completion"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            enableVibration(true)
+            // Set the default alarm sound at the channel level
+            val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            setSound(alarmSound, AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build())
+        }
+        val dropDownChannel = NotificationChannel(
+            CHANNEL_ID_DROP_DOWN, "Start Timer Notification", NotificationManager.IMPORTANCE_MAX
+        ).apply {
+            setSound(null, null) // Ensures no sound every second
+            enableVibration(false)
+            description = "Used for the start timer notification"
+        }
+        val timerChannel = NotificationChannel(
+            CHANNEL_ID_TIMER, "Ongoing Timer Notification", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            setSound(null, null) // Ensures no sound every second
+            enableVibration(false)
+        }
+        manager.createNotificationChannel(alarmChannel)
+        manager.createNotificationChannel(timerChannel)
+        manager.createNotificationChannel(dropDownChannel)
+    }
+}
 class MainActivity : ComponentActivity() {
     var isNotificationPermissionGranted by mutableStateOf(false)
     var isExactAlarmPermissionGranted by mutableStateOf(false)
@@ -63,8 +114,13 @@ class MainActivity : ComponentActivity() {
         }
         isExactAlarmPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) alarmManager.canScheduleExactAlarms() else true
         if (isNotificationPermissionGranted && isExactAlarmPermissionGranted) {
-            val intent = Intent(this, TimerService::class.java).apply { action = TimerService.ACTION_START_APP }
-            startService(intent)
+            // start broadcast receiver
+            sendBroadcast(Intent(
+                this,
+                TimerReceiver::class.java
+            ).apply {
+                action = TimerReceiver.ACTION_START_APP
+            })
             finish()
         }
     }

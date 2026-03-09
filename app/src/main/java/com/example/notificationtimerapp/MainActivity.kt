@@ -82,7 +82,6 @@ class MyApplication : Application() {
 class MainActivity : ComponentActivity() {
     var isNotificationPermissionGranted by mutableStateOf(false)
     var isExactAlarmPermissionGranted by mutableStateOf(false)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -98,7 +97,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
     override fun onStart() {
         super.onStart()
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager

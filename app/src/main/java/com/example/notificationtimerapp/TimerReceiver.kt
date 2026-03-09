@@ -15,6 +15,8 @@ import com.example.notificationtimerapp.MyApplication.Companion.CHANNEL_ID_TIMER
 
 class TimerReceiver : BroadcastReceiver() {
     companion object{
+        const val DURATION_OF_TIMER = 10*60_000L
+        const val BUFFER_TIMER = 30_000L
         const val URGENT_NOTIFICATION_START_ALARM_ID = 1001
         const val HIGH_NOTIFICATION_ID = 1002
 
@@ -38,9 +40,9 @@ class TimerReceiver : BroadcastReceiver() {
                 val builder = NotificationCompat.Builder(context, CHANNEL_ID_DROP_DOWN)
                     .setSmallIcon(android.R.drawable.ic_dialog_info)
                     .setContentTitle("Ready to start?")
-                    .setContentText("Tap start to begin your 30s timer")
+                    .setContentText("Tap start to begin your 10 minute timer")
                     .setPriority(NotificationCompat.PRIORITY_MAX)
-                    .addAction(provideEventAction(context, ACTION_RESUME_SERVICE, 30_000L))
+                    .addAction(provideEventAction(context, ACTION_RESUME_SERVICE, DURATION_OF_TIMER))
                     .build()
                 manager.notify(URGENT_NOTIFICATION_START_ALARM_ID,builder)
             }
@@ -52,7 +54,7 @@ class TimerReceiver : BroadcastReceiver() {
             }
             ACTION_PAUSE_SERVICE -> {
                 cancelAlarm(context)
-                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, 30_000L)
+                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, DURATION_OF_TIMER)
                 val manager = context.getSystemService(NotificationManager::class.java)
                 val remaining = (alarmIn - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
                 // building notification
@@ -69,7 +71,7 @@ class TimerReceiver : BroadcastReceiver() {
             }
             ACTION_RESUME_SERVICE -> {
                 // get duration from extras
-                val duration = intent.getLongExtra(EXTRA_DURATION, 30_000L)
+                val duration = intent.getLongExtra(EXTRA_DURATION, DURATION_OF_TIMER)
                 val manager = context.getSystemService(NotificationManager::class.java)
                 // cancel previous notifications if present
                 manager.cancel(URGENT_NOTIFICATION_START_ALARM_ID)
@@ -104,7 +106,7 @@ class TimerReceiver : BroadcastReceiver() {
                     .addAction(provideEventAction(context, ACTION_PAUSE_SERVICE, stopTime))
                     .addAction(provideEventAction(context, ACTION_STOP_APP))
                     .build()
-                if (duration<16_000){
+                if (duration<BUFFER_TIMER+1000){
                     manager.cancel(HIGH_NOTIFICATION_ID)
                 }else{
                     manager.notify(HIGH_NOTIFICATION_ID, builder)
@@ -123,7 +125,7 @@ class TimerReceiver : BroadcastReceiver() {
                 )
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                    stopTime-15_000, // start 15 seconds before the alarm
+                    stopTime-BUFFER_TIMER, // start 30 seconds before the alarm
                     pendingIntentForNotificationUpdate
                 )
             }
@@ -140,16 +142,16 @@ class TimerReceiver : BroadcastReceiver() {
                     .setPriority(NotificationCompat.PRIORITY_MAX)
                     .setOngoing(true)
                     //.setFullScreenIntent(null, true) // Increases urgency on many devices
-                    .addAction(provideEventAction(context,ACTION_RESUME_SERVICE, 30_000L, "Repeat"))
+                    .addAction(provideEventAction(context,ACTION_RESUME_SERVICE, DURATION_OF_TIMER, "Repeat"))
                     .addAction(provideEventAction(context,ACTION_STOP_APP))
                 manager.notify(URGENT_NOTIFICATION_START_ALARM_ID,builder.build())
             }
             ACTION_SHOW_DISMISSING_TOAST -> {
-                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, 30_000L) - SystemClock.elapsedRealtime()
+                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, DURATION_OF_TIMER) - SystemClock.elapsedRealtime()
                 Toast.makeText(context, "Alarm will ring in the next ${alarmIn/60000} minutes and ${alarmIn%60000/1000} seconds", Toast.LENGTH_LONG).show()
             }
             ACTION_UPDATE_NOTIFICATION -> {
-                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, 30_000L) - SystemClock.elapsedRealtime()
+                val alarmIn = intent.getLongExtra(EXTRA_ALARM_IN, DURATION_OF_TIMER) - SystemClock.elapsedRealtime()
                 val manager = context.getSystemService(NotificationManager::class.java)
                 // set up dismissing action
                 val recoverIntent = Intent(context, TimerReceiver::class.java).apply {
@@ -183,7 +185,7 @@ class TimerReceiver : BroadcastReceiver() {
                 }
                 val pendingIntentForAlarmEvent = PendingIntent.getBroadcast(
                     context,
-                    0,
+                    ACTION_START_ALARM.hashCode(),
                     alarmActionIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
@@ -200,7 +202,7 @@ class TimerReceiver : BroadcastReceiver() {
     private fun cancelAlarm(context: Context) {
         val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, TimerReceiver::class.java)
-        intent.action=ACTION_UPDATE_NOTIFICATION
+            intent.action=ACTION_UPDATE_NOTIFICATION
         // The PendingIntent must match the one used in startTimer exactly
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -216,6 +218,30 @@ class TimerReceiver : BroadcastReceiver() {
             // Any broadcast already "in flight" with this token will now fail.
             pendingIntent.cancel()
         }
+        val intentOfAlarm = Intent(context, TimerReceiver::class.java)
+        intentOfAlarm.action=ACTION_START_ALARM
+        // The PendingIntent must match the one used in startTimer exactly
+        val pendingIntentOfAlarm = PendingIntent.getBroadcast(
+            context,
+            ACTION_START_ALARM.hashCode(), // Match the request code used earlier
+            intentOfAlarm,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pendingIntentOfAlarm != null) {
+            // 1. Tell AlarmManager to stop tracking it
+            alarmManager.cancel(pendingIntentOfAlarm)
+            // 2. IMPORTANT: Invalidate the token itself.
+            // Any broadcast already "in flight" with this token will now fail.
+            pendingIntentOfAlarm.cancel()
+        }
+        val intentToast = Intent(context, TimerReceiver::class.java).apply { action = ACTION_SHOW_DISMISSING_TOAST }
+        val pendingToast = PendingIntent.getBroadcast(
+            context,
+            ACTION_SHOW_DISMISSING_TOAST.hashCode(),
+            intentToast,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        pendingToast?.cancel()
     }
     private fun provideEventAction(context : Context, action : String, stopTime : Long? = null, label : String? = null) : NotificationCompat.Action {
         when(action){
@@ -223,7 +249,7 @@ class TimerReceiver : BroadcastReceiver() {
                 // build resume service Intent
                 val resumeActionIntent = Intent(context, TimerReceiver::class.java)
                 resumeActionIntent.action = ACTION_RESUME_SERVICE
-                resumeActionIntent.putExtra(EXTRA_DURATION, stopTime ?: 30_000L)
+                resumeActionIntent.putExtra(EXTRA_DURATION, stopTime ?: DURATION_OF_TIMER)
                 val pendingIntentForResumeEvent = PendingIntent.getBroadcast(
                     context, ACTION_RESUME_SERVICE.hashCode(), resumeActionIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

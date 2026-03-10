@@ -1,7 +1,6 @@
 package com.example.notificationtimerapp
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
@@ -121,7 +120,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolean) {
+fun MainScreen(modifier : Modifier = Modifier, hasNotificationPermission : Boolean) {
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = {

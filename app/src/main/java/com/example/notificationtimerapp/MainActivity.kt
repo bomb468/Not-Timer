@@ -49,11 +49,12 @@ class MyApplication : Application() {
         val manager = getSystemService(NotificationManager::class.java)
         // 1. Alarm Channel: MAX Priority + Sound
         val alarmChannel = NotificationChannel(
-            CHANNEL_ID_ALARM, "Alarm Notification", NotificationManager.IMPORTANCE_MAX
+            CHANNEL_ID_ALARM, "Alarm Notification", NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "Used for start alarms on timer completion"
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             enableVibration(true)
+            setBypassDnd(true)
             // Set the default alarm sound at the channel level
             val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             setSound(alarmSound, AudioAttributes.Builder()
@@ -62,14 +63,14 @@ class MyApplication : Application() {
                 .build())
         }
         val dropDownChannel = NotificationChannel(
-            CHANNEL_ID_DROP_DOWN, "Start Timer Notification", NotificationManager.IMPORTANCE_MAX
+            CHANNEL_ID_DROP_DOWN, "Start Timer Notification", NotificationManager.IMPORTANCE_HIGH
         ).apply {
             setSound(null, null) // Ensures no sound every second
             enableVibration(false)
             description = "Used for the start timer notification"
         }
         val timerChannel = NotificationChannel(
-            CHANNEL_ID_TIMER, "Ongoing Timer Notification", NotificationManager.IMPORTANCE_HIGH
+            CHANNEL_ID_TIMER, "Ongoing Timer Notification", NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             setSound(null, null) // Ensures no sound every second
             enableVibration(false)
@@ -135,7 +136,7 @@ fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolea
             Button(onClick = {
                 var intent = Intent()
                 if (!hasNotificationPermission){
-                    intent = Intent().apply {
+                    intent = intent.apply {
                         action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                         data = Uri.fromParts("package", context.packageName, null)
                     }

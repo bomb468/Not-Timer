@@ -8,7 +8,7 @@
 
 | Start Timer | Active Timer | Paused Timer | Alarm Ringing |
 | :---: | :---: | :---: | :---: |
-| <img src="https://github.com/user-attachments/assets/8fa46d8c-3458-404d-9a94-ad4e907d4d0b" width="200" alt="Start Timer"> | <img src="https://github.com/user-attachments/assets/d21003e5-9eb5-4590-b406-b2658970e3ac" width="200" alt="Active Timer"> | <img src="https://github.com/user-attachments/assets/81072ec3-992c-4211-9666-0f5e95dda168" width="200" alt="Paused Timer"> | <img src="https://github.com/user-attachments/assets/ddb17385-1a80-4f8b-8d1d-869d7a888dda" width="200" alt="Alarm Ringing"> |
+| <img src="https://github.com/user-attachments/assets/8fa46d8c-3458-404d-9a94-ad4e907d4d0b" width="200"> | <img src="https://github.com/user-attachments/assets/d21003e5-9eb5-4590-b406-b2658970e3ac" width="200"> | <img src="https://github.com/user-attachments/assets/81072ec3-992c-4211-9666-0f5e95dda168" width="200"> | <img src="https://github.com/user-attachments/assets/ddb17385-1a80-4f8b-8d1d-869d7a888dda" width="200"> |
 
 ---
 

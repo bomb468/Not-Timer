@@ -1,7 +1,6 @@
 package com.example.notificationtimerapp
 
 import android.R
-import android.R.attr.action
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -35,52 +34,6 @@ class TimerService : Service() {
         const val ACTION_STOP_APP = "stopApp"
         const val ACTION_RESUME_SERVICE = "resumeService"
         const val ACTION_PAUSE_SERVICE = "pauseService"
-
-        // provides event actions for the notifications
-        private fun provideEventAction(
-            context: Context,
-            action: String,
-            label: String? = null,
-            stopTime: Long? = null
-        ): NotificationCompat.Action {
-            when (action) {
-                ACTION_RESUME_SERVICE -> {
-                    // build resume service Intent
-                    val resumeActionIntent = Intent(context, TimerService::class.java)
-                    resumeActionIntent.action = ACTION_RESUME_SERVICE
-                    val pendingIntentForResumeEvent = PendingIntent.getService(
-                        context, ACTION_RESUME_SERVICE.hashCode(), resumeActionIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    return NotificationCompat.Action(0, label, pendingIntentForResumeEvent)
-                }
-
-                ACTION_PAUSE_SERVICE -> {
-                    // build resume service Intent
-                    val pauseActionIntent = Intent(context, TimerService::class.java)
-                    pauseActionIntent.action = ACTION_PAUSE_SERVICE
-                    pauseActionIntent.putExtra("stopTime", stopTime)
-                    val pendingIntentForPauseEvent = PendingIntent.getService(
-                        context, ACTION_PAUSE_SERVICE.hashCode(), pauseActionIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                    )
-                    return NotificationCompat.Action(0, label, pendingIntentForPauseEvent)
-                }
-                ACTION_STOP_APP -> {
-                    // build stop service Intent
-                    val stopActionIntent = Intent(context, TimerService::class.java)
-                    stopActionIntent.action = ACTION_STOP_APP
-                    val pendingIntentForStopEvent = PendingIntent.getService(
-                        context, ACTION_STOP_APP.hashCode(), stopActionIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    return NotificationCompat.Action(0, "Stop", pendingIntentForStopEvent)
-                }
-                else -> {
-                    return NotificationCompat.Action(0, "Dummy Event", null)
-                }
-            }
-        }
     }
     // the only place to overwrite to edit duration in the app
     var duration : Long = TIMER_DURATION
@@ -120,14 +73,16 @@ class TimerService : Service() {
                 }
             }
             ACTION_RESUME_SERVICE -> {
-                job?.cancel() // Guard against overlapping coroutines
+                // cancel overlapping coroutines
+                job?.cancel()
+                // calculate stop in
                 val stopIn = duration + SystemClock.elapsedRealtime()
                 // build notification
                 val builder = NotificationCompat.Builder(this, CHANNEL_ID_TIMER)
                     .setSmallIcon(R.drawable.ic_media_play)
                     .setContentTitle("Timer Running")
                     .setContentText("Countdown in progress")
-                    .setWhen(stopIn)
+                    .setWhen(duration + System.currentTimeMillis())
                     .addAction(provideEventAction(this@TimerService, ACTION_PAUSE_SERVICE, "Pause",stopIn))
                     .addAction(provideEventAction(this@TimerService, ACTION_STOP_APP))
                     .setUsesChronometer(true)
@@ -173,7 +128,7 @@ class TimerService : Service() {
                     .setSmallIcon(R.drawable.ic_media_pause)
                     .setContentTitle("Timer Paused")
                     .setContentText("Paused at ${formatDuration(duration)}")
-                    .setWhen(SystemClock.elapsedRealtime() + duration)
+                    .setWhen(System.currentTimeMillis() + duration)
                     .setUsesChronometer(false)
                     .setShowWhen(true)
                     .addAction(provideEventAction(this, ACTION_RESUME_SERVICE, "Resume"))
@@ -184,18 +139,62 @@ class TimerService : Service() {
                 manager.notify(NOTIFICATION_ID,builder)
             }
             ACTION_STOP_APP -> {
-                // cancel job
+                // cancel existing job
                 job?.cancel()
-                // reset duration if the app is not dead before user starts it again
-                duration = TIMER_DURATION
-                // cancel notification immediately
+                // reset duration
+                duration = 60_000
+                // cancel notification immediately and stop service
                 manager.cancel(NOTIFICATION_ID)
-                // let system stop the service
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
         return START_STICKY
+    }
+    // provides event actions for the notifications
+    private fun provideEventAction(
+        context: Context,
+        action: String,
+        label: String? = null,
+        stopTime: Long? = null
+    ): NotificationCompat.Action {
+        when (action) {
+            ACTION_RESUME_SERVICE -> {
+                // build resume service Intent
+                val resumeActionIntent = Intent(context, TimerService::class.java)
+                resumeActionIntent.action = ACTION_RESUME_SERVICE
+                val pendingIntentForResumeEvent = PendingIntent.getService(
+                    context, ACTION_RESUME_SERVICE.hashCode(), resumeActionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                return NotificationCompat.Action(0, label, pendingIntentForResumeEvent)
+            }
+
+            ACTION_PAUSE_SERVICE -> {
+                // build resume service Intent
+                val pauseActionIntent = Intent(context, TimerService::class.java)
+                pauseActionIntent.action = ACTION_PAUSE_SERVICE
+                pauseActionIntent.putExtra("stopTime", stopTime)
+                val pendingIntentForPauseEvent = PendingIntent.getService(
+                    context, ACTION_PAUSE_SERVICE.hashCode(), pauseActionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                return NotificationCompat.Action(0, label, pendingIntentForPauseEvent)
+            }
+            ACTION_STOP_APP -> {
+                // build stop service Intent
+                val stopActionIntent = Intent(context, TimerService::class.java)
+                stopActionIntent.action = ACTION_STOP_APP
+                val pendingIntentForStopEvent = PendingIntent.getService(
+                    context, ACTION_STOP_APP.hashCode(), stopActionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                return NotificationCompat.Action(0, "Stop", pendingIntentForStopEvent)
+            }
+            else -> {
+                return NotificationCompat.Action(0, "Dummy Event", null)
+            }
+        }
     }
     override fun onCreate() {
         super.onCreate()

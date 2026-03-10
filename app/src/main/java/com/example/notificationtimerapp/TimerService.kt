@@ -95,7 +95,7 @@ class TimerService : Service() {
                 manager.notify(NOTIFICATION_ID,builder)
                 // handle alarm notification
                 job = serviceScope.launch {
-                    delay(duration)
+                    if (duration>0) delay(duration)
                     // show alarm notification
                     val builder = NotificationCompat.Builder(this@TimerService, CHANNEL_ID_ALARM)
                         .setSmallIcon(R.drawable.ic_lock_idle_alarm)
@@ -122,7 +122,7 @@ class TimerService : Service() {
                     // stop time will never be 0
                     return START_STICKY
                 }
-                duration = stopTime - SystemClock.elapsedRealtime()
+                duration = (stopTime - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
                 // update notification
                 val builder = NotificationCompat.Builder(this, CHANNEL_ID_TIMER)
                     .setSmallIcon(R.drawable.ic_media_pause)
@@ -142,7 +142,7 @@ class TimerService : Service() {
                 // cancel existing job
                 job?.cancel()
                 // reset duration
-                duration = 60_000
+                duration = TIMER_DURATION
                 // cancel notification immediately and stop service
                 manager.cancel(NOTIFICATION_ID)
                 stopForeground(STOP_FOREGROUND_REMOVE)

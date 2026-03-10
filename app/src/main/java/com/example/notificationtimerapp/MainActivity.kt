@@ -14,7 +14,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -82,7 +81,6 @@ class MyApplication : Application() {
 }
 class MainActivity : ComponentActivity() {
     var isNotificationPermissionGranted by mutableStateOf(false)
-    var isExactAlarmPermissionGranted by mutableStateOf(false)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -91,8 +89,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
-                        hasNotificationPermission = isNotificationPermissionGranted,
-                        hasExactAlarmPermission = isExactAlarmPermissionGranted
+                        hasNotificationPermission = isNotificationPermissionGranted
                     )
                 }
             }
@@ -100,7 +97,6 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() {
         super.onStart()
-        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13+ requires explicit POST_NOTIFICATIONS check
             ContextCompat.checkSelfPermission(
@@ -111,14 +107,13 @@ class MainActivity : ComponentActivity() {
             // Before Android 13, check if notifications are enabled via NotificationManagerCompat
             androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
         }
-        isExactAlarmPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) alarmManager.canScheduleExactAlarms() else true
-        if (isNotificationPermissionGranted && isExactAlarmPermissionGranted) {
+        if (isNotificationPermissionGranted) {
             // start broadcast receiver
-            sendBroadcast(Intent(
+            startForegroundService(Intent(
                 this,
-                TimerReceiver::class.java
+                TimerService::class.java
             ).apply {
-                action = TimerReceiver.ACTION_START_APP
+                action = TimerService.ACTION_START_APP
             })
             finish()
         }
@@ -126,7 +121,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolean, hasExactAlarmPermission : Boolean) {
+fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolean) {
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = {
@@ -141,22 +136,14 @@ fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolea
                         data = Uri.fromParts("package", context.packageName, null)
                     }
                 }
-                if (!hasExactAlarmPermission){
-                    intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                        data = Uri.fromParts("package", context.packageName, null)
-                    }
-                }
                 context.startActivity(intent)
             }) {
                 if (!hasNotificationPermission)
                     Text("Open Notification Settings")
-                else if (!hasExactAlarmPermission){
-                    Text("Open Exact Alarm Settings")
-                }
             }
         },
         title = { Text("Permissions Required") },
-        text = { Text("Notification and Schedule Exact Alarm Permissions are required for this app to function. Please enable them in settings.") },
+        text = { Text("Notifications Permission are required for this app to function. Please enable them in settings.") },
         // This prevents the user from clicking outside or pressing back to close it
         properties = DialogProperties(
             dismissOnBackPress = false,
@@ -169,6 +156,6 @@ fun MainScreen(modifier: Modifier = Modifier, hasNotificationPermission : Boolea
 @Composable
 fun GreetingPreview() {
     NotificationTimerAppTheme {
-        MainScreen(hasNotificationPermission = true, hasExactAlarmPermission = false)
+        MainScreen(hasNotificationPermission = true)
     }
 }
